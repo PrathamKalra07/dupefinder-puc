@@ -56,7 +56,7 @@
       statusDiv.textContent = "Uploading...";
 
       try {
-        const response = await fetch("https://dupefinder-puc.onrender.com/api/upload", {
+        const response = await fetch("http://localhost:8085/api/upload", {
           method: "POST",
           body: formData,
         });
