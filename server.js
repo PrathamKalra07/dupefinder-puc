@@ -10,9 +10,14 @@ const path = require('path');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
-app.options(/.*/, cors());
-
+// app.use(cors());
+// app.options(/.*/, cors());
+app.use(cors({
+  origin: 'https://orgfarm-9135997210-dev-ed.develop.lightning.force.com', 
+  methods: ['GET','POST'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: true
+}))
 dotenv.config();
 app.use(bodyParser.json());
 
