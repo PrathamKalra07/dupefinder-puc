@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload to Google Drive</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+    }
+    .container {
+      max-width: 400px;
+      padding: 20px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #333;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Upload File to Google Drive</h2>
+    <form id="uploadForm">
+      <input type="file" name="file" id="fileInput" required />
+      <br />
+      <button type="submit">Upload</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const statusDiv = document.getElementById("status");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("Please choose a file first!");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]); 
+
+      statusDiv.textContent = "Uploading...";
+
+      try {
+        const response = await fetch("http://localhost:8085/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Upload failed: " + response.statusText);
+        }
+
+        const result = await response.json();
+        statusDiv.innerHTML =
+          `<strong>Success!</strong><br>
+           File ID: ${result.file.id}<br>
+           Name: ${result.file.name}<br>
+           <a href="${result.file.webViewLink}" target="_blank">View in Google Drive</a>`;
+      } catch (err) {
+        statusDiv.textContent = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
