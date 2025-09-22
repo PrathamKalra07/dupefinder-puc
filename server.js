@@ -6,6 +6,10 @@ const path = require("path");
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
+app.get("/api/upload",(req,res)=>{
+    res.sendFile(path.join(__dirname,'pages','uploadFile.html'));
+})
+
 app.post("/api/upload-chunk", upload.single("chunk"), (req, res) => {
   const { fileName, chunkIndex } = req.body;
   const tempDir = path.join(__dirname, "uploads", fileName + "_chunks");
