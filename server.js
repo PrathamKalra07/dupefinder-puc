@@ -1,76 +1,44 @@
-const bodyParser = require('body-parser');
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const multer = require('multer');
-const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
-
+const express = require("express");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
-app.use(express.json());
-// app.use(cors());
-// app.options(/.*/, cors());
-app.use(cors({
-  origin: 'https://orgfarm-9135997210-dev-ed.develop.lightning.force.com', 
-  methods: ['GET','POST'],
-  allowedHeaders: ['Content-Type','Authorization'],
-  credentials: true
-}))
-dotenv.config();
-app.use(bodyParser.json());
+const upload = multer({ dest: "uploads/" });
 
-const upload = multer({ dest: 'uploads/' });
+app.post("/api/upload-chunk", upload.single("chunk"), (req, res) => {
+  const { fileName, chunkIndex } = req.body;
+  const tempDir = path.join(__dirname, "uploads", fileName + "_chunks");
 
-const oauth2Client = new google.auth.OAuth2();
-oauth2Client.setCredentials({
-  access_token: process.env.GOOGLE_ACCESS_TOKEN,
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+  const chunkPath = path.join(tempDir, `chunk_${chunkIndex}`);
+  fs.renameSync(req.file.path, chunkPath);
+
+  res.json({ message: `Chunk ${chunkIndex} stored` });
 });
 
-const driveService = google.drive({ version: 'v3', auth : oauth2Client });
+app.post("/api/merge-chunks", express.json(), (req, res) => {
+  const { fileName, totalChunks } = req.body;
+  const tempDir = path.join(__dirname, "uploads", fileName + "_chunks");
+  const finalPath = path.join(__dirname, "uploads", fileName);
 
-app.get('/api/upload',async (req,res)=>{
-    res.sendFile(path.join(__dirname,'pages','uploadFile.html'));
-})
+  const writeStream = fs.createWriteStream(finalPath);
 
-app.post('/api/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).send('No file uploaded.');
+  for (let i = 0; i < totalChunks; i++) {
+    const chunkFile = path.join(tempDir, `chunk_${i}`);
+    if (!fs.existsSync(chunkFile)) {
+      return res.status(400).json({ error: `Missing chunk ${i}` });
     }
-
-    const fileMetadata = {
-      name: req.file.originalname,
-    };
-    const media = {
-      mimeType: req.file.mimetype,
-      body: fs.createReadStream(req.file.path),
-    };
-
-    const driveResponse = await driveService.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      fields: 'id, name, webViewLink',
-      uploadType: 'resumable'
-    });
-
-    fs.unlinkSync(req.file.path);
-
-    res.json({
-      message: 'File uploaded successfully to Google Drive',
-      file: driveResponse.data,
-    });
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).send('Error uploading file');
+    writeStream.write(fs.readFileSync(chunkFile));
+    fs.unlinkSync(chunkFile);
   }
+
+  writeStream.end();
+  fs.rmdirSync(tempDir);
+
+  res.json({ message: `File assembled at ${finalPath}` });
 });
-
-
-
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Salesforce backup server listening on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
